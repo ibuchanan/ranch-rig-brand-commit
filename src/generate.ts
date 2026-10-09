@@ -3,6 +3,7 @@ import { resolve, type Outcome } from "./outcome";
 import { hasMessage, withMessage } from "./message-file";
 import { requestCommitMessage } from "./model";
 import { PROMPT } from "./prompt";
+import { sanitize } from "./sanitize";
 import { stagedDiff } from "./staged-diff";
 
 export async function generate(
@@ -62,5 +63,11 @@ async function decide(messageFile: string, commitSource: string | undefined): Pr
     return { kind: "aborted", cause: answer.cause };
   }
 
-  return { kind: "written", contents: withMessage(contents, answer.message) };
+  const sanitized = sanitize(answer.message);
+
+  if (sanitized.kind === "unusable") {
+    return { kind: "aborted", cause: { kind: "unusable-response" } };
+  }
+
+  return { kind: "written", contents: withMessage(contents, sanitized.message) };
 }
