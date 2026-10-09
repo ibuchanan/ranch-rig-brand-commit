@@ -6,8 +6,20 @@ import { fileURLToPath } from "node:url";
 import type { Subprocess } from "bun";
 
 export const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-export const binaryPath = join(projectRoot, "dist", "brand-commit");
+export const binaryDirectory = join(projectRoot, "dist");
+export const binaryPath = join(binaryDirectory, "brand-commit");
 export const stubDirectory = join(projectRoot, "test", "stubs");
+
+export const GIT_COMMENT_SCAFFOLDING = [
+  "# Please enter the commit message for your changes. Lines starting",
+  "# with '#' will be ignored, and an empty message aborts the commit.",
+  "#",
+  "",
+].join("\n");
+
+export function gitMessageFileContents(): string {
+  return `\n${GIT_COMMENT_SCAFFOLDING}`;
+}
 
 export const LEFTHOOK_UNFILLED_PLACEHOLDER = "{2}";
 
@@ -88,6 +100,10 @@ function spawnStdin(stdin: string | undefined): Buffer | "ignore" {
 
 export function stubbedPath(): string {
   return [stubDirectory, ...SYSTEM_PATH_DIRECTORIES].join(":");
+}
+
+export function hookPath(): string {
+  return [stubDirectory, binaryDirectory, ...SYSTEM_PATH_DIRECTORIES].join(":");
 }
 
 export function stubEnvironment(options: StubOptions = {}): Record<string, string> {
@@ -176,25 +192,74 @@ export async function runStub(
   );
 }
 
-export async function git(cwd: string, args: string[]): Promise<ProcessResult> {
+export async function git(
+  cwd: string,
+  args: string[],
+  env?: Record<string, string>,
+): Promise<ProcessResult> {
   return collect(
     Bun.spawn(["git", ...args], {
       cwd,
-      env: spawnEnvironment(undefined),
+      env: spawnEnvironment(env),
       stdout: "pipe",
       stderr: "pipe",
     }),
   );
 }
 
-export async function gitOrThrow(cwd: string, args: string[]): Promise<ProcessResult> {
-  const result = await git(cwd, args);
+export async function gitOrThrow(
+  cwd: string,
+  args: string[],
+  env?: Record<string, string>,
+): Promise<ProcessResult> {
+  const result = await git(cwd, args, env);
 
   if (result.exitCode !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
   }
 
   return result;
+}
+
+export function lefthookBinary(): string {
+  const found = Bun.which("lefthook");
+
+  if (found === null) {
+    throw new Error("lefthook is not on PATH; the end-to-end test needs it to install the hook");
+  }
+
+  return found;
+}
+
+export async function installPrepareCommitMsgHook(repo: string): Promise<void> {
+  await Bun.write(
+    join(repo, "lefthook.yml"),
+    ["prepare-commit-msg:", "  commands:", "    brand-commit:", "      run: brand-commit {1} {2}", ""].join(
+      "\n",
+    ),
+  );
+
+  const install = await collect(
+    Bun.spawn([lefthookBinary(), "install"], {
+      cwd: repo,
+      env: spawnEnvironment(undefined),
+      stdout: "pipe",
+      stderr: "pipe",
+    }),
+  );
+
+  if (install.exitCode !== 0) {
+    throw new Error(`lefthook install failed: ${install.stderr}`);
+  }
+}
+
+export function commitEnvironment(overrides: Record<string, string> = {}): Record<string, string> {
+  return {
+    PATH: hookPath(),
+    GIT_EDITOR: "true",
+    LEFTHOOK_OUTPUT: "false",
+    ...overrides,
+  };
 }
 
 export async function createTempRepo(): Promise<string> {

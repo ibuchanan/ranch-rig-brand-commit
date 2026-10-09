@@ -7,24 +7,14 @@ import {
   git,
   gitOrThrow,
   hookEnvironment,
-  messageFilePath,
   projectRoot,
   readMessageFile,
   runBinary,
-  runHook,
   runStub,
   seedFile,
   stubbedPath,
   stubDirectory,
-  writeMessageFile,
 } from "./helpers";
-
-const gitScaffolding = [
-  "",
-  "# Please enter the commit message for your changes. Lines starting",
-  "# with '#' will be ignored, and an empty message aborts the commit.",
-  "#",
-].join("\n");
 
 describe("build artifact", () => {
   test("builds a single executable named brand-commit", async () => {
@@ -179,31 +169,5 @@ describe("throwaway repositories", () => {
     const repo = await createTempRepo();
 
     expect(repo.startsWith(projectRoot)).toBe(false);
-  });
-});
-
-describe("hook invocation without hook behaviour", () => {
-  test("leaves the message file byte-identical", async () => {
-    const repo = await createTempRepo();
-    await seedFile(repo, "src/a.txt", "const a = 1;\n");
-    const messageFile = await writeMessageFile(repo, gitScaffolding);
-
-    const result = await runHook({ repo, messageFile });
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(await readMessageFile(messageFile)).toBe(gitScaffolding);
-  });
-
-  test("behaves the same when the commit source argument is absent", async () => {
-    const repo = await createTempRepo();
-    await seedFile(repo, "src/a.txt", "const a = 1;\n");
-    const messageFile = await writeMessageFile(repo, gitScaffolding);
-
-    const result = await runHook({ repo, messageFile, commitSource: null });
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(await readMessageFile(messageFile)).toBe(gitScaffolding);
   });
 });
