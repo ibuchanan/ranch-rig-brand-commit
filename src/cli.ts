@@ -1,10 +1,9 @@
+import { NO_SOURCE_SOURCES } from "./commit-source";
+import { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_USAGE } from "./exit-codes";
+import { generate } from "./generate";
 import { VERSION } from "./version";
 
-export const EXIT_OK = 0;
-export const EXIT_GENERATION_FAILED = 1;
-export const EXIT_USAGE = 2;
-
-export const NO_SOURCE_SOURCES = ["message", "template", "merge", "squash", "commit"];
+export { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_USAGE };
 
 const USAGE = `brand-commit ${VERSION}
 
@@ -39,7 +38,7 @@ export function usage(): string {
   return USAGE;
 }
 
-export function run(argv: string[]): number {
+export async function run(argv: string[]): Promise<number> {
   if (argv.includes("-h") || argv.includes("--help")) {
     process.stdout.write(USAGE);
     return EXIT_OK;
@@ -50,10 +49,14 @@ export function run(argv: string[]): number {
     return EXIT_OK;
   }
 
-  if (argv.filter((arg) => !arg.startsWith("-")).length === 0) {
+  const positional = argv.filter((arg) => !arg.startsWith("-"));
+
+  if (positional.length === 0) {
     process.stderr.write(`brand-commit: missing <message-file>\n\n${USAGE}`);
     return EXIT_USAGE;
   }
 
-  return EXIT_OK;
+  const [messageFile, commitSource] = positional;
+
+  return generate(messageFile ?? "", commitSource);
 }
