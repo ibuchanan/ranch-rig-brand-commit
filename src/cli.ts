@@ -1,9 +1,9 @@
-import { NO_SOURCE_SOURCES } from "./commit-source";
-import { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_USAGE } from "./exit-codes";
+import { SKIP_SOURCES } from "./commit-source";
+import { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_UNKNOWN_SOURCE, EXIT_USAGE } from "./exit-codes";
 import { generate } from "./generate";
 import { VERSION } from "./version";
 
-export { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_USAGE };
+export { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_UNKNOWN_SOURCE, EXIT_USAGE };
 
 const USAGE = `brand-commit ${VERSION}
 
@@ -18,8 +18,10 @@ Arguments:
   <message-file>       Path git passed for the commit message to populate.
   <commit-source>      Commit source git passed. The literal {2} that lefthook
                         substitutes for an absent argument means git supplied
-                        none. One of ${NO_SOURCE_SOURCES.join(", ")} means a
-                        message already exists and is left alone.
+                        none. One of ${SKIP_SOURCES.join(", ")} means a
+                        message already exists and is left alone. Any other
+                        value is refused, because guessing is how commits get
+                        corrupted.
 
 Environment:
   BRAND_COMMIT_DISABLE    Set to any value to leave the commit message alone.
@@ -32,6 +34,8 @@ Exit codes:
   ${EXIT_USAGE}  Usage error; the message file is not readable.
   ${EXIT_GENERATION_FAILED}  A message was asked for and could not be produced; the
      commit is aborted.
+  ${EXIT_UNKNOWN_SOURCE}  Git reported a commit source this build does not know; the
+     commit is aborted rather than guessed at.
 `;
 
 export function usage(): string {

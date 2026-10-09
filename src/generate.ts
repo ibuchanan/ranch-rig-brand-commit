@@ -1,5 +1,5 @@
-import { isBareCommit } from "./commit-source";
-import { EXIT_GENERATION_FAILED, EXIT_OK } from "./exit-codes";
+import { decideCommitSource } from "./commit-source";
+import { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_UNKNOWN_SOURCE } from "./exit-codes";
 import { requestCommitMessage } from "./model";
 import { hasMessage, withMessage } from "./message-file";
 import { PROMPT } from "./prompt";
@@ -9,8 +9,18 @@ export async function generate(
   messageFile: string,
   commitSource: string | undefined,
 ): Promise<number> {
-  if (!isBareCommit(commitSource)) {
+  const decision = decideCommitSource(commitSource);
+
+  if (decision.kind === "skip") {
     return EXIT_OK;
+  }
+
+  if (decision.kind === "unrecognised") {
+    const reason = `brand-commit: unrecognised commit source "${decision.source}"; aborting`;
+
+    process.stderr.write(`${reason}\n`);
+
+    return EXIT_UNKNOWN_SOURCE;
   }
 
   const contents = await Bun.file(messageFile).text();
