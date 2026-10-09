@@ -27,8 +27,8 @@ artifact, never against `src`. Every test spawns `dist/brand-commit` as a
 subprocess in its own throwaway git repository, and asserts only on the exit
 code, the commit message file, and stderr.
 
-One test commits for real through a lefthook-installed `prepare-commit-msg`
-hook, so `lefthook` must be on `PATH`.
+Several tests commit for real through a lefthook-installed
+`prepare-commit-msg` hook, so `lefthook` must be on `PATH`.
 
 Model calls are replaced at the single seam the suite is allowed:
 `test/stubs/rovo` sits on `PATH` ahead of the system directories and returns
