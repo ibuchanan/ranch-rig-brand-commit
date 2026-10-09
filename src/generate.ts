@@ -1,7 +1,7 @@
 import { decideCommitSource } from "./commit-source";
-import { EXIT_GENERATION_FAILED, EXIT_OK, EXIT_UNKNOWN_SOURCE } from "./exit-codes";
-import { requestCommitMessage } from "./model";
+import { resolve, type Outcome } from "./outcome";
 import { hasMessage, withMessage } from "./message-file";
+import { requestCommitMessage } from "./model";
 import { PROMPT } from "./prompt";
 import { stagedDiff } from "./staged-diff";
 
@@ -9,35 +9,58 @@ export async function generate(
   messageFile: string,
   commitSource: string | undefined,
 ): Promise<number> {
+  const outcome = await decide(messageFile, commitSource);
+  const { exitCode, line } = resolve(outcome);
+
+  if (line !== null) {
+    process.stderr.write(`${line}\n`);
+  }
+
+  if (outcome.kind === "written") {
+    await Bun.write(messageFile, outcome.contents);
+  }
+
+  return exitCode;
+}
+
+async function decide(messageFile: string, commitSource: string | undefined): Promise<Outcome> {
+  if (process.env["BRAND_COMMIT_DISABLE"] !== undefined) {
+    return { kind: "skip" };
+  }
+
   const decision = decideCommitSource(commitSource);
 
   if (decision.kind === "skip") {
-    return EXIT_OK;
+    return { kind: "skip" };
   }
 
   if (decision.kind === "unrecognised") {
-    const reason = `brand-commit: unrecognised commit source "${decision.source}"; aborting`;
-
-    process.stderr.write(`${reason}\n`);
-
-    return EXIT_UNKNOWN_SOURCE;
+    return { kind: "aborted", cause: { kind: "unrecognised-source", source: decision.source } };
   }
 
-  const contents = await Bun.file(messageFile).text();
+  const message = Bun.file(messageFile);
+
+  if (!(await message.exists())) {
+    return { kind: "aborted", cause: { kind: "unreadable-message-file", path: messageFile } };
+  }
+
+  const contents = await message.text();
 
   if (hasMessage(contents)) {
-    return EXIT_OK;
+    return { kind: "skip" };
   }
 
   const diff = await stagedDiff(process.cwd());
-  const response = await requestCommitMessage(process.env["BRAND_COMMIT_MODEL"], PROMPT, diff);
 
-  if (!response.ok) {
-    process.stderr.write(`brand-commit: no message written; ${response.cause}\n`);
-    return EXIT_GENERATION_FAILED;
+  if (diff.trim() === "") {
+    return { kind: "nothing-to-describe" };
   }
 
-  await Bun.write(messageFile, withMessage(contents, response.message));
+  const answer = await requestCommitMessage(process.env["BRAND_COMMIT_MODEL"], PROMPT, diff);
 
-  return EXIT_OK;
+  if (answer.kind === "failed") {
+    return { kind: "aborted", cause: answer.cause };
+  }
+
+  return { kind: "written", contents: withMessage(contents, answer.message) };
 }

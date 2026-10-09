@@ -24,16 +24,20 @@ Arguments:
                         corrupted.
 
 Environment:
-  BRAND_COMMIT_DISABLE    Set to any value to leave the commit message alone.
-  BRAND_COMMIT_TICKET     Ticket key to hand the model as context.
-  BRAND_COMMIT_MODEL      Model identifier to request from rovo.
-  BRAND_COMMIT_SOURCE     Overrides <commit-source> detection.
+  BRAND_COMMIT_DISABLE     Set to any value to leave the commit message alone.
+  BRAND_COMMIT_TICKET      Ticket key to hand the model as context.
+  BRAND_COMMIT_MODEL       Model identifier to request from rovo.
+  BRAND_COMMIT_SOURCE      Overrides <commit-source> detection.
+  BRAND_COMMIT_TIMEOUT_MS  Milliseconds to wait for the model before giving up.
+                           Defaults to 30000.
 
 Exit codes:
   ${EXIT_OK}  Nothing to do, or a message was written.
   ${EXIT_USAGE}  Usage error; the message file is not readable.
   ${EXIT_GENERATION_FAILED}  A message was asked for and could not be produced; the
-     commit is aborted.
+     commit is aborted. The cause is named on one line of stderr, because the
+     remedy differs between an unreachable model, a timeout, a model that
+     exited non-zero, and a response that was unusable.
   ${EXIT_UNKNOWN_SOURCE}  Git reported a commit source this build does not know; the
      commit is aborted rather than guessed at.
 `;

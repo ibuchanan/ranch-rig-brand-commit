@@ -21,6 +21,9 @@ case "${STUB_MODE:-ok}" in
     printf 'rovo: request failed (stubbed)\n' >&2
     exit 7
     ;;
+  hang)
+    exec sleep "${STUB_SLEEP_SECONDS:-60}"
+    ;;
   garbage)
     printf '```text\nfeat(JRA-999): garbage from the stub\n```\n'
     exit 0

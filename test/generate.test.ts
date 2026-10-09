@@ -108,6 +108,7 @@ describe("a model call that fails", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(result.stderr).toContain("exited 7");
+    expect(result.stderr).not.toContain("rovo: request failed");
     expect(await readMessageFile(messageFile)).toBe(untouched);
   });
 });

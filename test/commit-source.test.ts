@@ -249,14 +249,19 @@ describe("a commit with nothing staged", () => {
       commitEnvironment(),
     );
     await gitOrThrow(repo, ["reset", "--hard", "--quiet", "HEAD"]);
+    const editor = await writeEditingEditor(repo);
 
     const empty = await git(repo, ["commit", "--quiet", "--allow-empty"], {
       ...commitEnvironment(),
+      GIT_EDITOR: editor,
       STUB_OUTPUT: "chore(JRA-8): nothing was staged",
     });
 
     expect(empty.exitCode).toBe(0);
     expect(empty.stderr).not.toContain("unrecognised commit source");
     expect((await gitOrThrow(repo, ["rev-list", "--count", "HEAD"])).stdout.trim()).toBe("2");
+    expect((await gitOrThrow(repo, ["log", "-1", "--format=%s"])).stdout.trim()).toBe(
+      "Edited by the test harness",
+    );
   });
 });

@@ -48,12 +48,13 @@ export type ProcessResult = {
   stderr: string;
 };
 
-export type StubMode = "ok" | "empty" | "garbage" | "fail";
+export type StubMode = "ok" | "empty" | "garbage" | "fail" | "hang";
 
 export type StubOptions = {
   mode?: StubMode;
   output?: string;
   promptFile?: string;
+  sleepSeconds?: number;
 };
 
 const SCRUBBED_ENVIRONMENT_PREFIXES = ["GIT_", "BRAND_COMMIT_", "STUB_"];
@@ -121,6 +122,10 @@ export function stubEnvironment(options: StubOptions = {}): Record<string, strin
 
   if (options.promptFile !== undefined) {
     environment["STUB_PROMPT_FILE"] = options.promptFile;
+  }
+
+  if (options.sleepSeconds !== undefined) {
+    environment["STUB_SLEEP_SECONDS"] = String(options.sleepSeconds);
   }
 
   return environment;
