@@ -1,5 +1,5 @@
 import { afterAll } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,7 +72,9 @@ function inheritedEnvironment(): Record<string, string> {
   return environment;
 }
 
-function piped(stream: number | ReadableStream<Uint8Array> | undefined): ReadableStream<Uint8Array> {
+function piped(
+  stream: number | ReadableStream<Uint8Array> | undefined,
+): ReadableStream<Uint8Array> {
   if (!(stream instanceof ReadableStream)) {
     throw new Error("expected a piped stream; the harness always spawns with stdout/stderr piped");
   }
@@ -234,9 +236,13 @@ export function lefthookBinary(): string {
 export async function installPrepareCommitMsgHook(repo: string): Promise<void> {
   await Bun.write(
     join(repo, "lefthook.yml"),
-    ["prepare-commit-msg:", "  commands:", "    brand-commit:", "      run: brand-commit {1} {2}", ""].join(
-      "\n",
-    ),
+    [
+      "prepare-commit-msg:",
+      "  commands:",
+      "    brand-commit:",
+      "      run: brand-commit {1} {2}",
+      "",
+    ].join("\n"),
   );
 
   const install = await collect(
@@ -260,6 +266,16 @@ export function commitEnvironment(overrides: Record<string, string> = {}): Recor
     LEFTHOOK_OUTPUT: "false",
     ...overrides,
   };
+}
+
+export async function writeEditingEditor(repo: string): Promise<string> {
+  const path = join(repo, "editing-editor.sh");
+  const script = ["#!/bin/sh", `printf 'Edited by the test harness\n' >> "$1"`, ""].join("\n");
+
+  await Bun.write(path, script);
+  await chmod(path, 0o755);
+
+  return path;
 }
 
 export async function createTempRepo(): Promise<string> {
