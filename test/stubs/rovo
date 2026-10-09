@@ -1,0 +1,32 @@
+#!/bin/sh
+
+if [ -n "${STUB_PROMPT_FILE:-}" ]; then
+  {
+    printf 'ARGV\n'
+    for arg in "$@"; do
+      printf '%s\n' "$arg"
+    done
+    printf 'STDIN\n'
+    if [ ! -t 0 ]; then
+      cat
+    fi
+  } >"$STUB_PROMPT_FILE"
+fi
+
+case "${STUB_MODE:-ok}" in
+  empty)
+    exit 0
+    ;;
+  fail)
+    printf 'rovo: request failed (stubbed)\n' >&2
+    exit 7
+    ;;
+  garbage)
+    printf '```text\nfeat(JRA-999): garbage from the stub\n```\n'
+    exit 0
+    ;;
+  *)
+    printf '%s\n' "${STUB_OUTPUT:-feat(JRA-000): canned subject from the stub}"
+    exit 0
+    ;;
+esac
