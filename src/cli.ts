@@ -25,7 +25,14 @@ Arguments:
 
 Environment:
   BRAND_COMMIT_DISABLE     Set to any value to leave the commit message alone.
-  BRAND_COMMIT_TICKET      Ticket key to hand the model as context.
+  BRAND_COMMIT_TICKET      Ticket key to hand the model as context. It must be
+                           set on the same command line as git commit:
+                             BRAND_COMMIT_TICKET=JRA-123 git commit
+                           An agent running one shell per command gets a fresh
+                           shell each time, so exporting it in an earlier command
+                           reaches nothing. To set it once and commit later,
+                           write the key to .git/brand-commit-ticket instead;
+                           that file is read once and then deleted.
   BRAND_COMMIT_MODEL       Model identifier to request from rovo.
   BRAND_COMMIT_SOURCE      Overrides <commit-source> detection.
   BRAND_COMMIT_TIMEOUT_MS  Milliseconds to wait for the model before giving up.
