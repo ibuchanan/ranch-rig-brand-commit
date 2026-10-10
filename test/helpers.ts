@@ -297,6 +297,15 @@ export async function seedFile(repo: string, path: string, contents: string): Pr
   await gitOrThrow(repo, ["add", "--", path]);
 }
 
+export async function seedBinaryFile(
+  repo: string,
+  path: string,
+  contents: Uint8Array,
+): Promise<void> {
+  await Bun.write(join(repo, path), contents);
+  await gitOrThrow(repo, ["add", "--", path]);
+}
+
 export function messageFilePath(repo: string): string {
   return join(repo, ".git", "COMMIT_EDITMSG");
 }

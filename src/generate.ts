@@ -2,9 +2,9 @@ import { decideCommitSource } from "./commit-source";
 import { resolve, type Outcome } from "./outcome";
 import { hasMessage, withMessage } from "./message-file";
 import { requestCommitMessage } from "./model";
-import { PROMPT } from "./prompt";
+import { commitMessagePrompt } from "./prompt";
 import { sanitize } from "./sanitize";
-import { stagedDiff } from "./staged-diff";
+import { captureStagedDiff } from "./staged-diff";
 
 export async function generate(
   messageFile: string,
@@ -51,13 +51,24 @@ async function decide(messageFile: string, commitSource: string | undefined): Pr
     return { kind: "skip" };
   }
 
-  const diff = await stagedDiff(process.cwd());
+  const capture = await captureStagedDiff(process.cwd());
 
-  if (diff.trim() === "") {
+  // Two ways to have nothing worth a message, and both are correct answers
+  // rather than failures: an empty commit changed nothing, and a commit whose
+  // every file was filtered out changed something a message must not describe.
+  if (capture.kind === "empty") {
     return { kind: "nothing-to-describe" };
   }
 
-  const answer = await requestCommitMessage(process.env["BRAND_COMMIT_MODEL"], PROMPT, diff);
+  if (capture.kind === "all-excluded") {
+    return { kind: "nothing-to-describe" };
+  }
+
+  const answer = await requestCommitMessage(
+    process.env["BRAND_COMMIT_MODEL"],
+    commitMessagePrompt(capture),
+    capture.body,
+  );
 
   if (answer.kind === "failed") {
     return { kind: "aborted", cause: answer.cause };
