@@ -34,6 +34,37 @@ Model calls are replaced at the single seam the suite is allowed:
 `test/stubs/rovo` sits on `PATH` ahead of the system directories and returns
 canned output, so no test makes a real Rovo call.
 
+## Ticket key
+
+The tool hands a Jira issue key to the model as context. It does not decide
+where the key appears in the message — that belongs to the `git-commit` skill.
+
+There are two ways to supply it, and they behave differently.
+
+Set it on the same command line as the commit:
+
+```bash
+BRAND_COMMIT_TICKET=JRA-123 GIT_EDITOR=true git commit
+```
+
+An agent that runs one Bash call per command gets a fresh shell each time, so
+`export BRAND_COMMIT_TICKET=JRA-123` in an earlier call is gone by the next one.
+Nothing the tool can do recovers that, which is what the second channel is for.
+
+Write it to `.git/brand-commit-ticket` and commit whenever:
+
+```bash
+echo JRA-123 > .git/brand-commit-ticket
+git commit
+```
+
+The sidecar lives under `.git/` because git never tracks anything there, so the
+key cannot leak into a commit. It is read once and deleted before the model is
+called, so it cannot outlive the commit it was written for — an abandoned commit
+loses its key rather than handing it to the next one. A key that did survive a
+commit is reported on stderr as suspect, since a key attributed to the wrong
+ticket is worse than no key at all.
+
 ## Type check
 
 ```bash
