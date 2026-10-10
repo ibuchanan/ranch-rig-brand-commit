@@ -8,6 +8,7 @@ import type { Subprocess } from "bun";
 export const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const binaryDirectory = join(projectRoot, "dist");
 export const binaryPath = join(binaryDirectory, "brand-commit");
+export const installScriptPath = join(projectRoot, "scripts", "install.ts");
 export const stubDirectory = join(projectRoot, "test", "stubs");
 
 export const GIT_COMMENT_SCAFFOLDING = [
@@ -23,7 +24,7 @@ export function gitMessageFileContents(): string {
 
 export const LEFTHOOK_UNFILLED_PLACEHOLDER = "{2}";
 
-const SYSTEM_PATH_DIRECTORIES = ["/usr/bin", "/bin"];
+export const SYSTEM_PATH_DIRECTORIES = ["/usr/bin", "/bin"];
 
 const GIT_ENVIRONMENT = {
   GIT_CONFIG_GLOBAL: "/dev/null",
@@ -107,6 +108,14 @@ export function stubbedPath(): string {
 
 export function hookPath(): string {
   return [stubDirectory, binaryDirectory, ...SYSTEM_PATH_DIRECTORIES].join(":");
+}
+
+/**
+ * A PATH holding only the directories a machine without a JS toolchain would
+ * have. Anything the suite resolves through it has to be self-contained.
+ */
+export function systemOnlyPath(): string {
+  return SYSTEM_PATH_DIRECTORIES.join(":");
 }
 
 export function stubEnvironment(options: StubOptions = {}): Record<string, string> {
@@ -193,6 +202,52 @@ export async function runStub(
       cwd: options.cwd,
       env: spawnEnvironment(stubEnvironment(options.stub ?? {})),
       stdin: spawnStdin(options.stdin),
+      stdout: "pipe",
+      stderr: "pipe",
+    }),
+  );
+}
+
+/**
+ * Run the installer the way `bun run install` does, minus the build: the suite
+ * has already built, and the point here is what the installer places and
+ * refuses, not how the artifact came to exist.
+ */
+export async function runInstaller(options: {
+  binDirectory: string;
+  path: string;
+}): Promise<ProcessResult> {
+  return collect(
+    Bun.spawn([process.execPath, installScriptPath], {
+      cwd: projectRoot,
+      env: spawnEnvironment({
+        BRAND_COMMIT_BIN_DIR: options.binDirectory,
+        PATH: options.path,
+      }),
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    }),
+  );
+}
+
+/**
+ * Invoke a command found by bare name on `path`, with nothing else in the
+ * environment — no inherited variables, no interpreter variables, and no other
+ * directories to fall back on. A command that runs this way needs nothing
+ * installed alongside it.
+ */
+export async function runByBareName(
+  command: string,
+  args: string[],
+  path: string,
+  cwd: string,
+): Promise<ProcessResult> {
+  return collect(
+    Bun.spawn([command, ...args], {
+      cwd,
+      env: { PATH: path },
+      stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
     }),
@@ -290,6 +345,13 @@ export async function createTempRepo(): Promise<string> {
   await gitOrThrow(repo, ["init", "--quiet", "--initial-branch=main"]);
 
   return repo;
+}
+
+export async function createTempDirectory(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "brand-commit-bin-"));
+  temporaryDirectories.push(directory);
+
+  return directory;
 }
 
 export async function seedFile(repo: string, path: string, contents: string): Promise<void> {
